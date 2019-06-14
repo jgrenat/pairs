@@ -5,11 +5,28 @@ import Html exposing (Html, div, text)
 
 
 type alias Model =
-    ()
+    { state : State
+    , numPairs : Int
+    , cards : List Int
+    , matched : List Int
+    }
 
 
-type alias Msg =
-    ()
+type State
+    = InProgress Phase
+    | Solved
+
+
+type Phase
+    = Hidden
+    | OneRevealed Int
+    | TwoRevealed Int Int
+
+
+type Msg
+    = Click Int
+    | TimeOut
+    | Shuffle (List Int)
 
 
 main =
@@ -23,7 +40,25 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init =
-    always ( (), Cmd.none )
+    always ( initialModel, shuffleCards initialModel.cards )
+
+
+initialModel : Model
+initialModel =
+    let
+        numPairs =
+            10
+    in
+        { state = InProgress Hidden
+        , numPairs = numPairs
+        , cards = List.range 1 (2 * numPairs)
+        , matched = []
+        }
+
+
+shuffleCards : List Int -> Cmd Msg
+shuffleCards cards =
+    Cmd.none
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
