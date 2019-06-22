@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import List.Extra as List
+import Time exposing (every)
 
 
 type alias Model =
@@ -66,12 +67,40 @@ shuffleCards cards =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    ( case msg of
+        TimeOut ->
+            case model.state of
+                InProgress (TwoRevealed _ _) ->
+                    { model | state = InProgress Hidden }
+
+                other ->
+                    model
+
+        Click card ->
+            case model.state of
+                InProgress Hidden ->
+                    { model | state = InProgress (OneRevealed card) }
+
+                InProgress (OneRevealed card1) ->
+                    { model | state = InProgress (TwoRevealed card1 card) }
+
+                other ->
+                    model
+
+        other ->
+            model
+    , Cmd.none
+    )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    case model.state of
+        InProgress (TwoRevealed _ _) ->
+            every 2000 (always TimeOut)
+
+        other ->
+            Sub.none
 
 
 view : Model -> Html Msg
@@ -82,7 +111,7 @@ view model =
     in
         div []
             (createHeader model.state
-                :: List.map createRow (List.groupsOf columns model.cards)
+                :: List.map (createRow model) (List.groupsOf columns model.cards)
             )
 
 
@@ -119,13 +148,39 @@ createHeader state =
         )
 
 
-createRow : List Int -> Html Msg
-createRow cards =
-    div [] (List.map createButton cards)
+createRow : Model -> List Int -> Html Msg
+createRow model cards =
+    div [] (List.map (createButton model) cards)
 
 
-createButton : Int -> Html Msg
-createButton card =
+createButton : Model -> Int -> Html Msg
+createButton model card =
     button
         [ onClick (Click card) ]
-        [ text (String.fromInt card) ]
+        [ text (buttonText model card) ]
+
+
+buttonText : Model -> Int -> String
+buttonText model number =
+    let
+        text =
+            String.fromInt (modBy (List.length model.cards // 2) number)
+    in
+        if List.member number model.matched then
+            text
+        else
+            case model.state of
+                InProgress (OneRevealed card1) ->
+                    if card1 == number then
+                        text
+                    else
+                        "X"
+
+                InProgress (TwoRevealed card1 card2) ->
+                    if List.member number [ card1, card2 ] then
+                        text
+                    else
+                        "X"
+
+                other ->
+                    "X"
