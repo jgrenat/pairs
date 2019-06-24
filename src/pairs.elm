@@ -5,6 +5,8 @@ import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (disabled)
 import Html.Events exposing (onClick)
 import List.Extra as List
+import Random exposing (generate)
+import Random.List exposing (shuffle)
 import Set exposing (Set)
 import Time exposing (every)
 
@@ -64,24 +66,26 @@ initialModel =
 
 shuffleCards : List Int -> Cmd Msg
 shuffleCards cards =
-    Cmd.none
+    generate Shuffle (shuffle cards)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( case msg of
+    case msg of
         TimeOut ->
-            case model.state of
+            ( case model.state of
                 InProgress (TwoRevealed _ _) ->
                     { model | state = InProgress Hidden }
 
                 other ->
                     model
+            , Cmd.none
+            )
 
         Click card ->
-            if Set.member card model.matched then
+            ( if Set.member card model.matched then
                 model
-            else
+              else
                 case model.state of
                     InProgress Hidden ->
                         { model | state = InProgress (OneRevealed card) }
@@ -108,11 +112,18 @@ update msg model =
 
                     other ->
                         model
+            , Cmd.none
+            )
 
-        other ->
-            model
-    , Cmd.none
-    )
+        Restart ->
+            ( { model | state = InProgress Hidden, matched = Set.empty }
+            , shuffleCards model.cards
+            )
+
+        Shuffle cards ->
+            ( { model | cards = cards }
+            , Cmd.none
+            )
 
 
 matching : Model -> Int -> Int -> Bool
