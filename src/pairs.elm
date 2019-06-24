@@ -57,7 +57,7 @@ initialModel =
     in
         { state = InProgress Hidden
         , numPairs = numPairs
-        , cards = List.range 1 (2 * numPairs)
+        , cards = List.range 1 (numPairs * 2)
         , matched = Set.empty
         }
 
@@ -87,17 +87,24 @@ update msg model =
                         { model | state = InProgress (OneRevealed card) }
 
                     InProgress (OneRevealed card1) ->
-                        if card == card1 then
-                            model
-                        else
-                            { model
-                                | state = InProgress (TwoRevealed card1 card)
-                                , matched =
-                                    if matching model card1 card then
-                                        Set.insert card1 model.matched |> Set.insert card
-                                    else
-                                        model.matched
-                            }
+                        let
+                            matched =
+                                if matching model card1 card then
+                                    Set.insert card1 model.matched |> Set.insert card
+                                else
+                                    model.matched
+                        in
+                            if card == card1 then
+                                model
+                            else
+                                { model
+                                    | state =
+                                        if Set.size matched == model.numPairs * 2 then
+                                            Solved
+                                        else
+                                            InProgress (TwoRevealed card1 card)
+                                    , matched = matched
+                                }
 
                     other ->
                         model
