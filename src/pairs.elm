@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import List.Extra as List
+import Set exposing (Set)
 import Time exposing (every)
 
 
@@ -11,7 +12,7 @@ type alias Model =
     { state : State
     , numPairs : Int
     , cards : List Int
-    , matched : List Int
+    , matched : Set Int
     }
 
 
@@ -56,7 +57,7 @@ initialModel =
         { state = InProgress Hidden
         , numPairs = numPairs
         , cards = List.range 1 (2 * numPairs)
-        , matched = []
+        , matched = Set.empty
         }
 
 
@@ -77,20 +78,38 @@ update msg model =
                     model
 
         Click card ->
-            case model.state of
-                InProgress Hidden ->
-                    { model | state = InProgress (OneRevealed card) }
+            if Set.member card model.matched then
+                model
+            else
+                case model.state of
+                    InProgress Hidden ->
+                        { model | state = InProgress (OneRevealed card) }
 
-                InProgress (OneRevealed card1) ->
-                    { model | state = InProgress (TwoRevealed card1 card) }
+                    InProgress (OneRevealed card1) ->
+                        if card == card1 then
+                            model
+                        else
+                            { model
+                                | state = InProgress (TwoRevealed card1 card)
+                                , matched =
+                                    if matching model card1 card then
+                                        Set.insert card1 model.matched |> Set.insert card
+                                    else
+                                        model.matched
+                            }
 
-                other ->
-                    model
+                    other ->
+                        model
 
         other ->
             model
     , Cmd.none
     )
+
+
+matching : Model -> Int -> Int -> Bool
+matching model card1 card2 =
+    modBy (List.length model.cards // 2) card1 == modBy (List.length model.cards // 2) card2
 
 
 subscriptions : Model -> Sub Msg
@@ -166,7 +185,7 @@ buttonText model number =
         text =
             String.fromInt (modBy (List.length model.cards // 2) number)
     in
-        if List.member number model.matched then
+        if Set.member number model.matched then
             text
         else
             case model.state of
