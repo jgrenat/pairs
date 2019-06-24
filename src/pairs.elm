@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Browser
 import Html exposing (Html, button, div, text)
+import Html.Attributes exposing (disabled)
 import Html.Events exposing (onClick)
 import List.Extra as List
 import Set exposing (Set)
@@ -175,7 +176,22 @@ createRow model cards =
 createButton : Model -> Int -> Html Msg
 createButton model card =
     button
-        [ onClick (Click card) ]
+        [ onClick (Click card)
+        , disabled
+            (if Set.member card model.matched then
+                True
+             else
+                case model.state of
+                    InProgress (TwoRevealed _ _) ->
+                        True
+
+                    InProgress (OneRevealed card1) ->
+                        card == card1
+
+                    other ->
+                        False
+            )
+        ]
         [ text (buttonText model card) ]
 
 
