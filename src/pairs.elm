@@ -148,7 +148,7 @@ view model =
             calculateColumns (List.length model.cards)
     in
         div []
-            (createHeader model.state
+            (createHeader model
                 :: List.map (createRow model) (List.groupsOf columns model.cards)
             )
 
@@ -172,13 +172,22 @@ calculateColumns numCards =
         )
 
 
-createHeader : State -> Html Msg
-createHeader state =
+createHeader : Model -> Html Msg
+createHeader model =
     div []
-        (case state of
+        (case model.state of
             Solved ->
                 [ text "Congratulations!"
                 , button [ onClick Restart ] [ text "Play again" ]
+                ]
+
+            InProgress (TwoRevealed card1 card2) ->
+                [ text
+                    (if matching model card1 card2 then
+                        "A match!"
+                     else
+                        "Not a match, try again"
+                    )
                 ]
 
             other ->
