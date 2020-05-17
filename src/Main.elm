@@ -20,14 +20,10 @@ type alias Model =
 
 
 type State
-    = InProgress Phase
-    | Solved
-
-
-type Phase
     = Hidden
     | OneRevealed Int
     | TwoRevealed Int Int
+    | Solved
 
 
 type Msg
@@ -59,7 +55,7 @@ initialModel =
         numPairs =
             10
     in
-    { state = InProgress Hidden
+    { state = Hidden
     , numPairs = numPairs
     , cards = List.range 1 (numPairs * 2)
     , matched = Set.empty
@@ -76,8 +72,8 @@ update msg model =
     case msg of
         TimeOut ->
             ( case model.state of
-                InProgress (TwoRevealed _ _) ->
-                    { model | state = InProgress Hidden }
+                TwoRevealed _ _ ->
+                    { model | state = Hidden }
 
                 _ ->
                     model
@@ -90,10 +86,10 @@ update msg model =
 
               else
                 case model.state of
-                    InProgress Hidden ->
-                        { model | state = InProgress (OneRevealed card) }
+                    Hidden ->
+                        { model | state = OneRevealed card }
 
-                    InProgress (OneRevealed card1) ->
+                    OneRevealed card1 ->
                         revealAnother model card1 card
 
                     _ ->
@@ -102,7 +98,7 @@ update msg model =
             )
 
         Restart ->
-            ( { model | state = InProgress Hidden, matched = Set.empty }
+            ( { model | state = Hidden, matched = Set.empty }
             , shuffleCards model.cards
             )
 
@@ -134,7 +130,7 @@ revealAnother model alreadyRevealed toReveal =
                     Solved
 
                 else
-                    InProgress (TwoRevealed alreadyRevealed toReveal)
+                    TwoRevealed alreadyRevealed toReveal
             , matched = matched
         }
 
@@ -147,7 +143,7 @@ matching numPairs card1 card2 =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
-        InProgress (TwoRevealed _ _) ->
+        TwoRevealed _ _ ->
             Time.every 2000 (always TimeOut)
 
         _ ->
@@ -197,7 +193,7 @@ header model =
                 , Html.button [ Events.onClick Restart ] [ Html.text "Play again" ]
                 ]
 
-            InProgress (TwoRevealed card1 card2) ->
+            TwoRevealed card1 card2 ->
                 [ Html.text
                     (if matching model.numPairs card1 card2 then
                         "A match!"
@@ -220,10 +216,10 @@ cardButton model index =
             index
             model.matched
             || (case model.state of
-                    InProgress (TwoRevealed _ _) ->
+                    TwoRevealed _ _ ->
                         True
 
-                    InProgress (OneRevealed card) ->
+                    OneRevealed card ->
                         index == card
 
                     _ ->
@@ -251,14 +247,14 @@ buttonText model index =
 
     else
         case model.state of
-            InProgress (OneRevealed card) ->
+            OneRevealed card ->
                 if card == index then
                     textRevealed
 
                 else
                     textHidden
 
-            InProgress (TwoRevealed card1 card2) ->
+            TwoRevealed card1 card2 ->
                 if List.member index [ card1, card2 ] then
                     textRevealed
 
