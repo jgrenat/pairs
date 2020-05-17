@@ -47,8 +47,8 @@ main =
 
 
 init : () -> ( Model, Cmd Msg )
-init =
-    always ( initialModel, shuffleCards initialModel.cards )
+init () =
+    ( initialModel, shuffleCards initialModel.cards )
 
 
 initialModel : Model
@@ -94,7 +94,7 @@ update msg model =
                     InProgress (OneRevealed card1) ->
                         let
                             matched =
-                                if matching model card1 card then
+                                if matching model.numPairs card1 card then
                                     Set.insert card1 model.matched |> Set.insert card
 
                                 else
@@ -130,9 +130,9 @@ update msg model =
             )
 
 
-matching : Model -> Int -> Int -> Bool
-matching model card1 card2 =
-    modBy (List.length model.cards // 2) card1 == modBy (List.length model.cards // 2) card2
+matching : Int -> Int -> Int -> Bool
+matching numPairs card1 card2 =
+    modBy numPairs card1 == modBy numPairs card2
 
 
 subscriptions : Model -> Sub Msg
@@ -187,7 +187,7 @@ createHeader model =
 
             InProgress (TwoRevealed card1 card2) ->
                 [ Html.text
-                    (if matching model card1 card2 then
+                    (if matching model.numPairs card1 card2 then
                         "A match!"
 
                      else
@@ -232,7 +232,11 @@ buttonText : Model -> Int -> String
 buttonText model number =
     let
         text =
-            String.fromInt (modBy (List.length model.cards // 2) number)
+            modBy (List.length model.cards // 2) number
+                |> String.fromInt
+
+        cardHidden =
+            "X"
     in
     if Set.member number model.matched then
         text
@@ -244,14 +248,14 @@ buttonText model number =
                     text
 
                 else
-                    "X"
+                    cardHidden
 
             InProgress (TwoRevealed card1 card2) ->
                 if List.member number [ card1, card2 ] then
                     text
 
                 else
-                    "X"
+                    cardHidden
 
             other ->
-                "X"
+                cardHidden
