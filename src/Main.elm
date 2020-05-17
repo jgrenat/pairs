@@ -213,12 +213,10 @@ createButton : Model -> Int -> Html Msg
 createButton model card =
     Html.button
         [ Events.onClick (Click card)
-        , Attrs.disabled
-            (if Set.member card model.matched then
-                True
-
-             else
-                case model.state of
+        , Set.member
+            card
+            model.matched
+            || (case model.state of
                     InProgress (TwoRevealed _ _) ->
                         True
 
@@ -227,7 +225,8 @@ createButton model card =
 
                     other ->
                         False
-            )
+               )
+            |> Attrs.disabled
         ]
         [ Html.text (buttonText model card) ]
 
