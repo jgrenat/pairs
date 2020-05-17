@@ -163,7 +163,9 @@ view model =
     in
     Html.div []
         (header model
-            :: List.map (row model) (List.groupsOf columns model.cards)
+            :: List.map
+                (Html.div [] << List.map (cardButton model))
+                (List.groupsOf columns model.cards)
         )
 
 
@@ -208,11 +210,6 @@ header model =
             _ ->
                 [ Html.text "Click on the cards to reveal them" ]
         )
-
-
-row : Model -> List Int -> Html Msg
-row model cards =
-    Html.div [] (List.map (cardButton model) cards)
 
 
 cardButton : Model -> Int -> Html Msg
