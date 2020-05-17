@@ -79,7 +79,7 @@ update msg model =
                 InProgress (TwoRevealed _ _) ->
                     { model | state = InProgress Hidden }
 
-                other ->
+                _ ->
                     model
             , Cmd.none
             )
@@ -96,7 +96,7 @@ update msg model =
                     InProgress (OneRevealed card1) ->
                         revealAnother model card1 card
 
-                    other ->
+                    _ ->
                         model
             , Cmd.none
             )
@@ -150,7 +150,7 @@ subscriptions model =
         InProgress (TwoRevealed _ _) ->
             Time.every 2000 (always TimeOut)
 
-        other ->
+        _ ->
             Sub.none
 
 
@@ -205,7 +205,7 @@ createHeader model =
                     )
                 ]
 
-            other ->
+            _ ->
                 [ Html.text "Click on the cards to reveal them" ]
         )
 
@@ -229,7 +229,7 @@ createButton model card =
                     InProgress (OneRevealed card1) ->
                         card == card1
 
-                    other ->
+                    _ ->
                         False
                )
             |> Attrs.disabled
@@ -268,5 +268,5 @@ buttonText model number =
                 else
                     cardHidden
 
-            other ->
+            _ ->
                 cardHidden
