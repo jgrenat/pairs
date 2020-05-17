@@ -7,29 +7,32 @@ import Html.Events as Events
 import List.Extra as List
 import Random
 import Random.List as Random
-import Set exposing (Set)
 import Time
 
 
 type alias Model =
     { state : State
     , numPairs : Int
-    , cards : List Int
-    , matched : Set Int
+    , cards : List Card
+    , matched : List Card
     }
 
 
 type State
     = Hidden
-    | OneRevealed Int
-    | TwoRevealed Int Int
+    | OneRevealed Card
+    | TwoRevealed Card Card
     | Solved
 
 
+type Card
+    = Card Int
+
+
 type Msg
-    = Click Int
+    = Click Card
     | TimeOut
-    | Shuffle (List Int)
+    | Shuffle (List Card)
     | Restart
 
 
@@ -57,14 +60,21 @@ initialModel =
     in
     { state = Hidden
     , numPairs = numPairs
-    , cards = List.range 1 (numPairs * 2)
-    , matched = Set.empty
+    , cards =
+        List.range 1 (numPairs * 2)
+            |> List.map Card
+    , matched = []
     }
 
 
-shuffleCards : List Int -> Cmd Msg
+shuffleCards : List Card -> Cmd Msg
 shuffleCards cards =
     Random.generate Shuffle (Random.shuffle cards)
+
+
+index : Card -> Int
+index (Card card) =
+    card
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -81,7 +91,7 @@ update msg model =
             )
 
         Click card ->
-            ( if Set.member card model.matched then
+            ( if List.member card model.matched then
                 model
 
               else
@@ -98,7 +108,7 @@ update msg model =
             )
 
         Restart ->
-            ( { model | state = Hidden, matched = Set.empty }
+            ( { model | state = Hidden, matched = [] }
             , shuffleCards model.cards
             )
 
@@ -108,25 +118,24 @@ update msg model =
             )
 
 
-revealAnother : Model -> Int -> Int -> Model
+revealAnother : Model -> Card -> Card -> Model
 revealAnother model alreadyRevealed toReveal =
     if toReveal == alreadyRevealed then
         model
 
     else
         let
-            matched : Set Int
+            matched : List Card
             matched =
                 if matching model.numPairs alreadyRevealed toReveal then
-                    Set.insert alreadyRevealed model.matched
-                        |> Set.insert toReveal
+                    alreadyRevealed :: toReveal :: model.matched
 
                 else
                     model.matched
         in
         { model
             | state =
-                if Set.size matched == model.numPairs * 2 then
+                if List.length matched == model.numPairs * 2 then
                     Solved
 
                 else
@@ -135,9 +144,9 @@ revealAnother model alreadyRevealed toReveal =
         }
 
 
-matching : Int -> Int -> Int -> Bool
+matching : Int -> Card -> Card -> Bool
 matching numPairs card1 card2 =
-    modBy numPairs card1 == modBy numPairs card2
+    modBy numPairs (index card1) == modBy numPairs (index card2)
 
 
 subscriptions : Model -> Sub Msg
@@ -208,54 +217,54 @@ header model =
         )
 
 
-cardButton : Model -> Int -> Html Msg
-cardButton model index =
+cardButton : Model -> Card -> Html Msg
+cardButton model card =
     Html.button
-        [ Events.onClick (Click index)
-        , Set.member
-            index
+        [ Events.onClick (Click card)
+        , List.member
+            card
             model.matched
             || (case model.state of
                     TwoRevealed _ _ ->
                         True
 
-                    OneRevealed card ->
-                        index == card
+                    OneRevealed card1 ->
+                        card == card1
 
                     _ ->
                         False
                )
             |> Attrs.disabled
         ]
-        [ Html.text (buttonText model index) ]
+        [ Html.text (buttonText model card) ]
 
 
-buttonText : Model -> Int -> String
-buttonText model index =
+buttonText : Model -> Card -> String
+buttonText model card =
     let
         textRevealed : String
         textRevealed =
-            modBy (List.length model.cards // 2) index
+            modBy (List.length model.cards // 2) (index card)
                 |> String.fromInt
 
         textHidden : String
         textHidden =
             "X"
     in
-    if Set.member index model.matched then
+    if List.member card model.matched then
         textRevealed
 
     else
         case model.state of
-            OneRevealed card ->
-                if card == index then
+            OneRevealed card1 ->
+                if card == card1 then
                     textRevealed
 
                 else
                     textHidden
 
             TwoRevealed card1 card2 ->
-                if List.member index [ card1, card2 ] then
+                if List.member card [ card1, card2 ] then
                     textRevealed
 
                 else
