@@ -37,6 +37,7 @@ type Msg
     | Restart
 
 
+main : Program () Model Msg
 main =
     Browser.element
         { init = init
@@ -54,6 +55,7 @@ init () =
 initialModel : Model
 initialModel =
     let
+        numPairs : Int
         numPairs =
             10
     in
@@ -93,6 +95,7 @@ update msg model =
 
                     InProgress (OneRevealed card1) ->
                         let
+                            matched : Set Int
                             matched =
                                 if matching model.numPairs card1 card then
                                     Set.insert card1 model.matched |> Set.insert card
@@ -148,6 +151,7 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     let
+        columns : Int
         columns =
             calculateColumns (List.length model.cards)
     in
@@ -231,10 +235,12 @@ createButton model card =
 buttonText : Model -> Int -> String
 buttonText model number =
     let
+        text : String
         text =
             modBy (List.length model.cards // 2) number
                 |> String.fromInt
 
+        cardHidden : String
         cardHidden =
             "X"
     in
