@@ -94,28 +94,7 @@ update msg model =
                         { model | state = InProgress (OneRevealed card) }
 
                     InProgress (OneRevealed card1) ->
-                        let
-                            matched : Set Int
-                            matched =
-                                if matching model.numPairs card1 card then
-                                    Set.insert card1 model.matched |> Set.insert card
-
-                                else
-                                    model.matched
-                        in
-                        if card == card1 then
-                            model
-
-                        else
-                            { model
-                                | state =
-                                    if Set.size matched == model.numPairs * 2 then
-                                        Solved
-
-                                    else
-                                        InProgress (TwoRevealed card1 card)
-                                , matched = matched
-                            }
+                        revealAnother model card1 card
 
                     other ->
                         model
@@ -131,6 +110,33 @@ update msg model =
             ( { model | cards = cards }
             , Cmd.none
             )
+
+
+revealAnother : Model -> Int -> Int -> Model
+revealAnother model alreadyRevealed toReveal =
+    if toReveal == alreadyRevealed then
+        model
+
+    else
+        let
+            matched : Set Int
+            matched =
+                if matching model.numPairs alreadyRevealed toReveal then
+                    Set.insert alreadyRevealed model.matched
+                        |> Set.insert toReveal
+
+                else
+                    model.matched
+        in
+        { model
+            | state =
+                if Set.size matched == model.numPairs * 2 then
+                    Solved
+
+                else
+                    InProgress (TwoRevealed alreadyRevealed toReveal)
+            , matched = matched
+        }
 
 
 matching : Int -> Int -> Int -> Bool
