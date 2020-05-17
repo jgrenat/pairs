@@ -159,19 +159,19 @@ view model =
     let
         columns : Int
         columns =
-            calculateColumns (List.length model.cards)
+            numColumns (List.length model.cards)
     in
     Html.div []
-        (createHeader model
-            :: List.map (createRow model) (List.groupsOf columns model.cards)
+        (header model
+            :: List.map (row model) (List.groupsOf columns model.cards)
         )
 
 
 {-| Try for equal number of rows and columns,
 favoring more columns if numCards is not a perfect square
 -}
-calculateColumns : Int -> Int
-calculateColumns numCards =
+numColumns : Int -> Int
+numColumns numCards =
     Maybe.withDefault numCards
         (List.find
             (\n -> modBy n numCards == 0)
@@ -186,8 +186,8 @@ calculateColumns numCards =
         )
 
 
-createHeader : Model -> Html Msg
-createHeader model =
+header : Model -> Html Msg
+header model =
     Html.div []
         (case model.state of
             Solved ->
@@ -210,63 +210,63 @@ createHeader model =
         )
 
 
-createRow : Model -> List Int -> Html Msg
-createRow model cards =
-    Html.div [] (List.map (createButton model) cards)
+row : Model -> List Int -> Html Msg
+row model cards =
+    Html.div [] (List.map (cardButton model) cards)
 
 
-createButton : Model -> Int -> Html Msg
-createButton model card =
+cardButton : Model -> Int -> Html Msg
+cardButton model index =
     Html.button
-        [ Events.onClick (Click card)
+        [ Events.onClick (Click index)
         , Set.member
-            card
+            index
             model.matched
             || (case model.state of
                     InProgress (TwoRevealed _ _) ->
                         True
 
-                    InProgress (OneRevealed card1) ->
-                        card == card1
+                    InProgress (OneRevealed card) ->
+                        index == card
 
                     _ ->
                         False
                )
             |> Attrs.disabled
         ]
-        [ Html.text (buttonText model card) ]
+        [ Html.text (buttonText model index) ]
 
 
 buttonText : Model -> Int -> String
-buttonText model number =
+buttonText model index =
     let
-        text : String
-        text =
-            modBy (List.length model.cards // 2) number
+        textRevealed : String
+        textRevealed =
+            modBy (List.length model.cards // 2) index
                 |> String.fromInt
 
-        cardHidden : String
-        cardHidden =
+        textHidden : String
+        textHidden =
             "X"
     in
-    if Set.member number model.matched then
-        text
+    if Set.member index model.matched then
+        textRevealed
 
     else
         case model.state of
-            InProgress (OneRevealed card1) ->
-                if card1 == number then
-                    text
+            InProgress (OneRevealed card) ->
+                if card == index then
+                    textRevealed
 
                 else
-                    cardHidden
+                    textHidden
 
             InProgress (TwoRevealed card1 card2) ->
-                if List.member number [ card1, card2 ] then
-                    text
+                if List.member index [ card1, card2 ] then
+                    textRevealed
 
                 else
-                    cardHidden
+                    textHidden
 
             _ ->
-                cardHidden
+                textHidden
