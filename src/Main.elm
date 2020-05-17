@@ -1,14 +1,14 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (disabled)
-import Html.Events exposing (onClick)
+import Html exposing (Html)
+import Html.Attributes as Attrs
+import Html.Events as Events
 import List.Extra as List
-import Random exposing (generate)
-import Random.List exposing (shuffle)
+import Random
+import Random.List as Random
 import Set exposing (Set)
-import Time exposing (every)
+import Time
 
 
 type alias Model =
@@ -66,7 +66,7 @@ initialModel =
 
 shuffleCards : List Int -> Cmd Msg
 shuffleCards cards =
-    generate Shuffle (shuffle cards)
+    Random.generate Shuffle (Random.shuffle cards)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -139,7 +139,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
         InProgress (TwoRevealed _ _) ->
-            every 2000 (always TimeOut)
+            Time.every 2000 (always TimeOut)
 
         other ->
             Sub.none
@@ -151,7 +151,7 @@ view model =
         columns =
             calculateColumns (List.length model.cards)
     in
-    div []
+    Html.div []
         (createHeader model
             :: List.map (createRow model) (List.groupsOf columns model.cards)
         )
@@ -178,15 +178,15 @@ calculateColumns numCards =
 
 createHeader : Model -> Html Msg
 createHeader model =
-    div []
+    Html.div []
         (case model.state of
             Solved ->
-                [ text "Congratulations!"
-                , button [ onClick Restart ] [ text "Play again" ]
+                [ Html.text "Congratulations!"
+                , Html.button [ Events.onClick Restart ] [ Html.text "Play again" ]
                 ]
 
             InProgress (TwoRevealed card1 card2) ->
-                [ text
+                [ Html.text
                     (if matching model card1 card2 then
                         "A match!"
 
@@ -196,20 +196,20 @@ createHeader model =
                 ]
 
             other ->
-                [ text "Click on the cards to reveal them" ]
+                [ Html.text "Click on the cards to reveal them" ]
         )
 
 
 createRow : Model -> List Int -> Html Msg
 createRow model cards =
-    div [] (List.map (createButton model) cards)
+    Html.div [] (List.map (createButton model) cards)
 
 
 createButton : Model -> Int -> Html Msg
 createButton model card =
-    button
-        [ onClick (Click card)
-        , disabled
+    Html.button
+        [ Events.onClick (Click card)
+        , Attrs.disabled
             (if Set.member card model.matched then
                 True
 
@@ -225,7 +225,7 @@ createButton model card =
                         False
             )
         ]
-        [ text (buttonText model card) ]
+        [ Html.text (buttonText model card) ]
 
 
 buttonText : Model -> Int -> String
