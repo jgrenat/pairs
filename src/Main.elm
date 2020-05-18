@@ -13,7 +13,7 @@ import Time
 type alias Model =
     { state : State
     , numPairs : Int
-    , cards : List Card
+    , cards : Maybe (List Card)
     , matched : List Card
     }
 
@@ -32,7 +32,7 @@ type Card
 type Msg
     = Click Card
     | TimeOut
-    | Shuffle (List Card)
+    | NewGame (List Card)
     | Restart
 
 
@@ -48,7 +48,7 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( initialModel, shuffleCards initialModel.cards )
+    ( initialModel, newGame initialModel.numPairs )
 
 
 initialModel : Model
@@ -60,16 +60,24 @@ initialModel =
     in
     { state = Hidden
     , numPairs = numPairs
-    , cards =
-        List.range 1 (numPairs * 2)
-            |> List.map Card
+    , cards = Nothing
     , matched = []
     }
 
 
-shuffleCards : List Card -> Cmd Msg
-shuffleCards cards =
-    Random.generate Shuffle (Random.shuffle cards)
+newGame : Int -> Cmd Msg
+newGame numPairs =
+    Random.generate
+        NewGame
+        (createCards numPairs
+            |> Random.shuffle
+        )
+
+
+createCards : Int -> List Card
+createCards numPairs =
+    List.range 1 (numPairs * 2)
+        |> List.map Card
 
 
 index : Card -> Int
@@ -108,12 +116,12 @@ update msg model =
             )
 
         Restart ->
-            ( { model | state = Hidden, matched = [] }
-            , shuffleCards model.cards
+            ( { model | state = Hidden, matched = [], cards = Nothing }
+            , newGame model.numPairs
             )
 
-        Shuffle cards ->
-            ( { model | cards = cards }
+        NewGame cards ->
+            ( { model | cards = Just cards }
             , Cmd.none
             )
 
@@ -161,17 +169,22 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    let
-        columns : Int
-        columns =
-            numColumns (List.length model.cards)
-    in
-    Html.div []
-        (header model
-            :: List.map
-                (Html.div [] << List.map (cardButton model))
-                (List.groupsOf columns model.cards)
-        )
+    case model.cards of
+        Just cards ->
+            let
+                columns : Int
+                columns =
+                    numColumns (List.length cards)
+            in
+            Html.div []
+                (header model
+                    :: List.map
+                        (Html.div [] << List.map (cardButton cards model.matched model.state))
+                        (List.groupsOf columns cards)
+                )
+
+        Nothing ->
+            Html.text "Shuffling …"
 
 
 {-| Try for equal number of rows and columns,
@@ -217,14 +230,14 @@ header model =
         )
 
 
-cardButton : Model -> Card -> Html Msg
-cardButton model card =
+cardButton : List Card -> List Card -> State -> Card -> Html Msg
+cardButton cards matched state card =
     Html.button
         [ Events.onClick (Click card)
         , List.member
             card
-            model.matched
-            || (case model.state of
+            matched
+            || (case state of
                     TwoRevealed _ _ ->
                         True
 
@@ -236,26 +249,26 @@ cardButton model card =
                )
             |> Attrs.disabled
         ]
-        [ Html.text (buttonText model card) ]
+        [ Html.text (buttonText cards matched state card) ]
 
 
-buttonText : Model -> Card -> String
-buttonText model card =
+buttonText : List Card -> List Card -> State -> Card -> String
+buttonText cards matched state card =
     let
         textRevealed : String
         textRevealed =
-            modBy (List.length model.cards // 2) (index card)
+            modBy (List.length cards // 2) (index card)
                 |> String.fromInt
 
         textHidden : String
         textHidden =
             "X"
     in
-    if List.member card model.matched then
+    if List.member card matched then
         textRevealed
 
     else
-        case model.state of
+        case state of
             OneRevealed card1 ->
                 if card == card1 then
                     textRevealed
