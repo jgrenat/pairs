@@ -26,7 +26,12 @@ type State
 
 
 type Card
-    = Card Int
+    = Card Int Instance
+
+
+type Instance
+    = A
+    | B
 
 
 type Msg
@@ -76,13 +81,8 @@ newGame numPairs =
 
 createCards : Int -> List Card
 createCards numPairs =
-    List.range 1 (numPairs * 2)
-        |> List.map Card
-
-
-index : Card -> Int
-index (Card card) =
-    card
+    List.range 0 (numPairs - 1)
+        |> List.concatMap (\index -> [ Card index A, Card index B ])
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -153,8 +153,8 @@ revealAnother model alreadyRevealed toReveal =
 
 
 matching : Int -> Card -> Card -> Bool
-matching numPairs card1 card2 =
-    modBy numPairs (index card1) == modBy numPairs (index card2)
+matching numPairs (Card index1 _) (Card index2 _) =
+    index1 == index2
 
 
 subscriptions : Model -> Sub Msg
@@ -257,8 +257,9 @@ buttonText cards matched state card =
     let
         textRevealed : String
         textRevealed =
-            modBy (List.length cards // 2) (index card)
-                |> String.fromInt
+            case card of
+                Card index _ ->
+                    String.fromInt index
 
         textHidden : String
         textHidden =
