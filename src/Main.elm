@@ -39,7 +39,28 @@ type Msg
     = Click Card
     | TimeOut
     | NewGame (List Card)
-    | Restart
+    | Restart Difficulty
+
+
+type Difficulty
+    = Easy
+    | Medium
+    | Hard
+
+
+numPairsEasy : Int
+numPairsEasy =
+    4
+
+
+numPairsMedium : Int
+numPairsMedium =
+    10
+
+
+numPairsHard : Int
+numPairsHard =
+    20
 
 
 main : Program () Model Msg
@@ -62,7 +83,7 @@ initialModel =
     let
         numPairs : Int
         numPairs =
-            10
+            numPairsEasy
     in
     { state = Hidden
     , numPairs = numPairs
@@ -120,9 +141,27 @@ update msg model =
             , Cmd.none
             )
 
-        Restart ->
-            ( { model | state = Hidden, matched = [], cards = Nothing }
-            , newGame model.numPairs
+        Restart difficulty ->
+            let
+                numPairs : Int
+                numPairs =
+                    case difficulty of
+                        Easy ->
+                            numPairsEasy
+
+                        Medium ->
+                            numPairsMedium
+
+                        Hard ->
+                            numPairsHard
+            in
+            ( { model
+                | state = Hidden
+                , matched = []
+                , cards = Nothing
+                , numPairs = numPairs
+              }
+            , newGame numPairs
             )
 
         NewGame cards ->
@@ -228,7 +267,14 @@ header model =
         (case model.state of
             Solved ->
                 [ Html.span messageStyle [ Html.text "Congratulations!" ]
-                , Html.button (Events.onClick Restart :: restartButtonStyle) [ Html.text "Play again" ]
+                , Html.div []
+                    (Html.span messageStyle [ Html.text "Play again?" ]
+                        :: List.map
+                            (\( difficulty, label ) ->
+                                Html.button (Events.onClick (Restart difficulty) :: restartButtonStyle) [ Html.text label ]
+                            )
+                            [ ( Easy, "Easy" ), ( Medium, "Medium" ), ( Hard, "Hard" ) ]
+                    )
                 ]
 
             TwoRevealed card1 card2 ->
