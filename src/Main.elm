@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Animal exposing (Emoji)
 import Browser
 import Html exposing (Html)
 import Html.Attributes as Attrs
@@ -26,7 +27,7 @@ type State
 
 
 type Card
-    = Card Int Instance
+    = Card Emoji Instance
 
 
 type Instance
@@ -74,15 +75,19 @@ newGame : Int -> Cmd Msg
 newGame numPairs =
     Random.generate
         NewGame
-        (createCards numPairs
-            |> Random.shuffle
+        (Random.shuffle Animal.emojis
+            |> Random.andThen
+                (\emojis ->
+                    createCards emojis numPairs
+                        |> Random.shuffle
+                )
         )
 
 
-createCards : Int -> List Card
-createCards numPairs =
-    List.range 0 (numPairs - 1)
-        |> List.concatMap (\index -> [ Card index A, Card index B ])
+createCards : List Emoji -> Int -> List Card
+createCards emojis numPairs =
+    List.take numPairs emojis
+        |> List.concatMap (\emoji -> [ Card emoji A, Card emoji B ])
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -258,8 +263,8 @@ buttonText cards matched state card =
         textRevealed : String
         textRevealed =
             case card of
-                Card index _ ->
-                    String.fromInt index
+                Card emoji _ ->
+                    Animal.toString emoji
 
         textHidden : String
         textHidden =
