@@ -177,19 +177,30 @@ view model =
     case model.cards of
         Just cards ->
             let
+                numCards : Int
+                numCards =
+                    List.length cards
+
                 columns : Int
                 columns =
-                    numColumns (List.length cards)
+                    numColumns numCards
+
+                rows : Int
+                rows =
+                    numCards // columns
             in
             Html.div []
-                (header model
-                    :: List.map
-                        (Html.div [] << List.map (cardButton cards model.matched model.state))
-                        (List.groupsOf columns cards)
-                )
+                [ header model
+                , Html.div
+                    (grid rows columns)
+                    (List.map
+                        (cardView model.matched model.state)
+                        cards
+                    )
+                ]
 
         Nothing ->
-            Html.text "Shuffling …"
+            Html.span messageStyle [ Html.text "Shuffling …" ]
 
 
 {-| Try for equal number of rows and columns,
@@ -213,81 +224,117 @@ numColumns numCards =
 
 header : Model -> Html Msg
 header model =
-    Html.div []
+    Html.div headerStyle
         (case model.state of
             Solved ->
-                [ Html.text "Congratulations!"
-                , Html.button [ Events.onClick Restart ] [ Html.text "Play again" ]
+                [ Html.span messageStyle [ Html.text "Congratulations!" ]
+                , Html.button (Events.onClick Restart :: restartButtonStyle) [ Html.text "Play again" ]
                 ]
 
             TwoRevealed card1 card2 ->
-                [ Html.text
-                    (if matching model.numPairs card1 card2 then
-                        "A match!"
+                [ Html.span messageStyle
+                    [ Html.text
+                        (if matching model.numPairs card1 card2 then
+                            "A match!"
 
-                     else
-                        "Not a match, try again"
-                    )
+                         else
+                            "Not a match, try again"
+                        )
+                    ]
                 ]
 
             _ ->
-                [ Html.text "Click on the cards to reveal them" ]
+                [ Html.span messageStyle [ Html.text "Click on the cards to reveal them" ] ]
         )
 
 
-cardButton : List Card -> List Card -> State -> Card -> Html Msg
-cardButton cards matched state card =
-    Html.button
-        [ Events.onClick (Click card)
-        , List.member
-            card
-            matched
-            || (case state of
-                    TwoRevealed _ _ ->
-                        True
-
-                    OneRevealed card1 ->
-                        card == card1
-
-                    _ ->
-                        False
-               )
-            |> Attrs.disabled
-        ]
-        [ Html.text (buttonText cards matched state card) ]
-
-
-buttonText : List Card -> List Card -> State -> Card -> String
-buttonText cards matched state card =
-    let
-        textRevealed : String
-        textRevealed =
-            case card of
-                Card emoji _ ->
-                    Animal.toString emoji
-
-        textHidden : String
-        textHidden =
-            "❓"
-    in
+cardView : List Card -> State -> Card -> Html Msg
+cardView matched state card =
     if List.member card matched then
-        textRevealed
+        cardRevealedView card
 
     else
         case state of
             OneRevealed card1 ->
                 if card == card1 then
-                    textRevealed
+                    cardRevealedView card
 
                 else
-                    textHidden
+                    cardHiddenView matched state card
 
             TwoRevealed card1 card2 ->
                 if List.member card [ card1, card2 ] then
-                    textRevealed
+                    cardRevealedView card
 
                 else
-                    textHidden
+                    cardHiddenView matched state card
 
             _ ->
-                textHidden
+                cardHiddenView matched state card
+
+
+cardRevealedView : Card -> Html Msg
+cardRevealedView card =
+    Html.span cardStyle
+        [ case card of
+            Card emoji _ ->
+                Animal.toString emoji
+                    |> Html.text
+        ]
+
+
+cardHiddenView : List Card -> State -> Card -> Html Msg
+cardHiddenView matched state card =
+    Html.button
+        (Events.onClick (Click card)
+            :: (List.member
+                    card
+                    matched
+                    || (case state of
+                            TwoRevealed _ _ ->
+                                True
+
+                            _ ->
+                                False
+                       )
+                    |> Attrs.disabled
+               )
+            :: cardStyle
+        )
+        [ Html.text "❓" ]
+
+
+grid : Int -> Int -> List (Html.Attribute Msg)
+grid rows columns =
+    [ Attrs.style "display" "grid"
+    , Attrs.style "grid-template-columns" (String.join " " (List.repeat columns "60pt"))
+    , Attrs.style "grid-template-rows" (String.join " " (List.repeat rows "60pt"))
+    ]
+
+
+cardStyle : List (Html.Attribute Msg)
+cardStyle =
+    [ Attrs.style "font-size" "40pt"
+    , Attrs.style "margin" "5px"
+    , Attrs.style "padding" "2px"
+    ]
+
+
+restartButtonStyle : List (Html.Attribute Msg)
+restartButtonStyle =
+    [ Attrs.style "font-size" "20pt"
+    , Attrs.style "margin" "5px"
+    ]
+
+
+messageStyle : List (Html.Attribute Msg)
+messageStyle =
+    [ Attrs.style "font-size" "20pt"
+    , Attrs.style "margin" "5px"
+    , Attrs.style "padding" "2px"
+    ]
+
+
+headerStyle : List (Html.Attribute Msg)
+headerStyle =
+    [ Attrs.style "padding" "10px" ]
