@@ -268,7 +268,7 @@ buttonText cards matched state card =
 
         textHidden : String
         textHidden =
-            "X"
+            "❓"
     in
     if List.member card matched then
         textRevealed
