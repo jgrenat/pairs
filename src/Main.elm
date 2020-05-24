@@ -363,7 +363,7 @@ cardStyle =
     [ Attrs.style "font-size" "40pt"
     , Attrs.style "margin" "5px"
     , Attrs.style "padding" "2px"
-    , Attrs.style "border-radius" "0"
+    , Attrs.style "border-radius" "1px"
     ]
 
 
