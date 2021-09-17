@@ -1,10 +1,11 @@
 module Main exposing (main)
 
-import Animal exposing (Emoji)
+import Animal exposing (Emoji, activeBomb, inactiveBomb)
 import Browser
 import Html exposing (Html)
 import Html.Attributes as Attrs
 import Html.Events as Events
+import List
 import List.Extra as List
 import Random
 import Random.List as Random
@@ -23,11 +24,16 @@ type State
     = Hidden
     | OneRevealed Card
     | TwoRevealed Card Card
+    | BombRevealed Instance
+    | OneCardAndOneBombRevealed Card Instance
     | Solved
+    | Lost Instance
 
 
 type Card
     = Card Emoji Instance
+    | InactiveBomb Instance
+    | ActiveBomb Instance
 
 
 type Instance
@@ -40,6 +46,7 @@ type Msg
     | TimeOut
     | NewGame (List Card)
     | Restart Difficulty
+    | ActivateBomb
 
 
 type Difficulty
@@ -109,6 +116,7 @@ createCards : List Emoji -> Int -> List Card
 createCards emojis numPairs =
     List.take numPairs emojis
         |> List.concatMap (\emoji -> [ Card emoji A, Card emoji B ])
+        |> List.append [ InactiveBomb A, InactiveBomb B ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -119,7 +127,22 @@ update msg model =
                 TwoRevealed _ _ ->
                     { model | state = Hidden }
 
-                _ ->
+                Hidden ->
+                    model
+
+                OneRevealed _ ->
+                    model
+
+                BombRevealed _ ->
+                    model
+
+                Solved ->
+                    model
+
+                OneCardAndOneBombRevealed _ _ ->
+                    model
+
+                Lost instance ->
                     model
             , Cmd.none
             )
@@ -131,12 +154,40 @@ update msg model =
               else
                 case model.state of
                     Hidden ->
-                        { model | state = OneRevealed card }
+                        case card of
+                            ActiveBomb instance ->
+                                { model | state = Lost instance }
+
+                            InactiveBomb instance ->
+                                { model | state = BombRevealed instance }
+
+                            _ ->
+                                { model | state = OneRevealed card }
 
                     OneRevealed card1 ->
-                        revealAnother model card1 card
+                        case card of
+                            ActiveBomb instance ->
+                                { model | state = Lost instance }
 
-                    _ ->
+                            InactiveBomb instance ->
+                                { model | state = OneCardAndOneBombRevealed card1 instance }
+
+                            _ ->
+                                revealAnother model card1 card
+
+                    BombRevealed _ ->
+                        model
+
+                    Solved ->
+                        model
+
+                    TwoRevealed _ _ ->
+                        model
+
+                    OneCardAndOneBombRevealed _ _ ->
+                        model
+
+                    Lost _ ->
                         model
             , Cmd.none
             )
@@ -169,6 +220,42 @@ update msg model =
             , Cmd.none
             )
 
+        ActivateBomb ->
+            case model.state of
+                BombRevealed instance ->
+                    ( { model | state = Hidden, cards = Maybe.map (activateBomb instance) model.cards }, Cmd.none )
+
+                Hidden ->
+                    ( model, Cmd.none )
+
+                OneRevealed _ ->
+                    ( model, Cmd.none )
+
+                TwoRevealed _ _ ->
+                    ( model, Cmd.none )
+
+                Solved ->
+                    ( model, Cmd.none )
+
+                OneCardAndOneBombRevealed _ instance ->
+                    ( { model | state = Hidden, cards = Maybe.map (activateBomb instance) model.cards }, Cmd.none )
+
+                Lost _ ->
+                    ( model, Cmd.none )
+
+
+activateBomb : Instance -> List Card -> List Card
+activateBomb instance cards =
+    List.map
+        (\card ->
+            if card == InactiveBomb instance then
+                ActiveBomb instance
+
+            else
+                card
+        )
+        cards
+
 
 revealAnother : Model -> Card -> Card -> Model
 revealAnother model alreadyRevealed toReveal =
@@ -197,17 +284,37 @@ revealAnother model alreadyRevealed toReveal =
 
 
 matching : Int -> Card -> Card -> Bool
-matching numPairs (Card index1 _) (Card index2 _) =
-    index1 == index2
+matching numPairs card1 card2 =
+    case ( card1, card2 ) of
+        ( Card index1 _, Card index2 _ ) ->
+            index1 == index2
+
+        _ ->
+            False
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
         TwoRevealed _ _ ->
-            Time.every 2000 (always TimeOut)
+            Time.every 500 (always TimeOut)
 
-        _ ->
+        Hidden ->
+            Sub.none
+
+        OneRevealed _ ->
+            Sub.none
+
+        BombRevealed _ ->
+            Time.every 1000 (always ActivateBomb)
+
+        Solved ->
+            Sub.none
+
+        OneCardAndOneBombRevealed _ _ ->
+            Time.every 1000 (always ActivateBomb)
+
+        Lost _ ->
             Sub.none
 
 
@@ -236,6 +343,12 @@ view model =
                         (cardView model.matched model.state)
                         cards
                     )
+                , case model.state of
+                    Lost _ ->
+                        Html.p messageStyle [ Html.text "You've lost 😅" ]
+
+                    _ ->
+                        Html.text ""
                 ]
 
         Nothing ->
@@ -267,14 +380,11 @@ header model =
         (case model.state of
             Solved ->
                 [ Html.span messageStyle [ Html.text "Congratulations!" ]
-                , Html.div []
-                    (Html.span messageStyle [ Html.text "Play again?" ]
-                        :: List.map
-                            (\( difficulty, label ) ->
-                                Html.button (Events.onClick (Restart difficulty) :: restartButtonStyle) [ Html.text label ]
-                            )
-                            [ ( Easy, "Easy" ), ( Medium, "Medium" ), ( Hard, "Hard" ) ]
-                    )
+                , playAgainView
+                ]
+
+            Lost _ ->
+                [ playAgainView
                 ]
 
             TwoRevealed card1 card2 ->
@@ -291,6 +401,18 @@ header model =
 
             _ ->
                 [ Html.span messageStyle [ Html.text "Click on the cards to reveal them" ] ]
+        )
+
+
+playAgainView : Html Msg
+playAgainView =
+    Html.div []
+        (Html.span messageStyle [ Html.text "Play again?" ]
+            :: List.map
+                (\( difficulty, label ) ->
+                    Html.button (Events.onClick (Restart difficulty) :: restartButtonStyle) [ Html.text label ]
+                )
+                [ ( Easy, "Easy" ), ( Medium, "Medium" ), ( Hard, "Hard" ) ]
         )
 
 
@@ -315,8 +437,28 @@ cardView matched state card =
                 else
                     cardHiddenView matched state card
 
-            _ ->
+            Hidden ->
                 cardHiddenView matched state card
+
+            BombRevealed instance ->
+                if card == InactiveBomb instance then
+                    cardRevealedView card
+
+                else
+                    cardHiddenView matched state card
+
+            Solved ->
+                cardHiddenView matched state card
+
+            OneCardAndOneBombRevealed card1 instance ->
+                if card == InactiveBomb instance || card == card1 then
+                    cardRevealedView card
+
+                else
+                    cardHiddenView matched state card
+
+            Lost _ ->
+                cardRevealedView card
 
 
 cardRevealedView : Card -> Html Msg
@@ -325,6 +467,14 @@ cardRevealedView card =
         [ case card of
             Card emoji _ ->
                 Animal.toString emoji
+                    |> Html.text
+
+            InactiveBomb _ ->
+                Animal.toString inactiveBomb
+                    |> Html.text
+
+            ActiveBomb _ ->
+                Animal.toString activeBomb
                     |> Html.text
         ]
 

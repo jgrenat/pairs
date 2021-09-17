@@ -1,4 +1,4 @@
-module Animal exposing (Emoji, emojis, toString)
+module Animal exposing (Emoji, activeBomb, emojis, inactiveBomb, toString)
 
 
 type Emoji
@@ -102,3 +102,13 @@ emojis =
         , 0x0001F9A8
         , 0x0001F9A9
         ]
+
+
+inactiveBomb : Emoji
+inactiveBomb =
+    Emoji 0x0001F4A3
+
+
+activeBomb : Emoji
+activeBomb =
+    Emoji 0x0001F4A5
